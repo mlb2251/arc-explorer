@@ -123,6 +123,17 @@
                     <div id="info_display"></div>
                 </div>
             </div>
+
+            <div id="function_index_view">
+                <div class="text" id="function_index_header">DSL Functions</div>
+                <div id="function_filter_bar">
+                    Filtered: <strong id="active_fn_name"></strong>
+                    <button onclick="clearFunctionFilter()">Clear</button>
+                </div>
+                <div id="function_list"></div>
+            </div>
+
         </div>
+        <div id="dsl-tooltip"><pre id="dsl-tooltip-body"></pre></div>
     </body>
 </html>

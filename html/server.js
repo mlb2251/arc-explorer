@@ -15,8 +15,11 @@ const PORT = parseInt(process.argv[2] || '8070');
 const HTML_DIR = __dirname;                            // html/
 const DATA_DIR = path.join(__dirname, '..', 'data');   // data/
 const SOLVERS_PATH = path.join(__dirname, '..', 'clones', 'arc-dsl', 'solvers.py');
+const DSL_PATH = path.join(__dirname, '..', 'clones', 'arc-dsl', 'dsl.py');
 
 let solversCache = null;
+let dslCache = null;
+let functionIndexCache = null;
 
 function getSolversContent(cb) {
     if (solversCache) return cb(null, solversCache);
@@ -25,6 +28,58 @@ function getSolversContent(cb) {
         solversCache = data;
         cb(null, data);
     });
+}
+
+function getDslContent(cb) {
+    if (dslCache) return cb(null, dslCache);
+    fs.readFile(DSL_PATH, 'utf8', (err, data) => {
+        if (err) return cb(err);
+        dslCache = data;
+        cb(null, data);
+    });
+}
+
+function buildFunctionIndex(dslContent, solversContent) {
+    // Parse top-level function definitions from dsl.py
+    const dslFunctions = {};
+    const dslLines = dslContent.split('\n');
+    let curName = null;
+    let curBody = [];
+    for (const line of dslLines) {
+        if (/^def [a-zA-Z_]\w*\(/.test(line)) {
+            if (curName) dslFunctions[curName] = curBody.join('\n').trimEnd();
+            const m = line.match(/^def ([a-zA-Z_]\w*)\(/);
+            curName = m[1];
+            curBody = [line];
+        } else if (curName) {
+            curBody.push(line);
+        }
+    }
+    if (curName) dslFunctions[curName] = curBody.join('\n').trimEnd();
+
+    // For each solver function, find which DSL functions it calls
+    const knownFns = new Set(Object.keys(dslFunctions));
+    const taskFunctions = {};
+    let curTask = null;
+    let curFns = new Set();
+    const solverLines = solversContent.split('\n');
+    for (const line of solverLines) {
+        const m = line.match(/^def solve_([a-zA-Z0-9_]+)\(/);
+        if (m) {
+            if (curTask) taskFunctions[curTask] = [...curFns];
+            curTask = m[1];
+            curFns = new Set();
+        } else if (curTask) {
+            const re = /\b([a-zA-Z_]\w*)\s*\(/g;
+            let match;
+            while ((match = re.exec(line)) !== null) {
+                if (knownFns.has(match[1])) curFns.add(match[1]);
+            }
+        }
+    }
+    if (curTask) taskFunctions[curTask] = [...curFns];
+
+    return { dslFunctions, taskFunctions };
 }
 
 const MIME = {
@@ -80,6 +135,19 @@ const server = http.createServer((req, res) => {
         listDirs(path.join(DATA_DIR, dataset), (err, dirs) => {
             if (err) return errorResponse(res, 404, `dataset not found: ${dataset}`);
             jsonResponse(res, dirs);
+        });
+        return;
+    }
+
+    if (url.pathname === '/api/function-index') {
+        if (functionIndexCache) return jsonResponse(res, functionIndexCache);
+        getDslContent((err, dslContent) => {
+            if (err) return errorResponse(res, 404, 'dsl.py not found');
+            getSolversContent((err, solversContent) => {
+                if (err) return errorResponse(res, 404, 'solvers.py not found');
+                functionIndexCache = buildFunctionIndex(dslContent, solversContent);
+                jsonResponse(res, functionIndexCache);
+            });
         });
         return;
     }

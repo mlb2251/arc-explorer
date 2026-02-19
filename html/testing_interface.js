@@ -5,6 +5,12 @@ var CURRENT_TASK_INDEX = 0;
 var CURRENT_DATASET = '';
 var CURRENT_CATEGORY = '';
 
+// Function index state.
+var FUNCTION_INDEX = null;       // {dslFunctions, taskFunctions, functionTasks}
+var ACTIVE_FUNCTION_FILTER = null;
+var ORIGINAL_TASK_LIST = null;
+var CURRENT_SOLVER_CODE = null;  // raw text of the last loaded solver
+
 // Internal state.
 var CURRENT_INPUT_GRID = new Grid(3, 3);
 var CURRENT_OUTPUT_GRID = new Grid(3, 3);
@@ -13,8 +19,8 @@ var CURRENT_TEST_PAIR_INDEX = 0;
 var COPY_PASTE_DATA = new Array();
 
 // Cosmetic.
-var EDITION_GRID_HEIGHT = 500;
-var EDITION_GRID_WIDTH = 500;
+var EDITION_GRID_HEIGHT = 300;
+var EDITION_GRID_WIDTH = 300;
 var MAX_CELL_SIZE = 100;
 
 
@@ -160,6 +166,7 @@ function loadSolverCode(filename) {
     var solverDiv = $('#solver_display');
     if (CURRENT_DATASET !== 'arc' || CURRENT_CATEGORY !== 'training') {
         solverDiv.hide();
+        CURRENT_SOLVER_CODE = null;
         return;
     }
     var taskId = filename.replace('.json', '');
@@ -167,10 +174,12 @@ function loadSolverCode(filename) {
         url: '/api/solver?task=' + encodeURIComponent(taskId),
         dataType: 'text',
         success: function(code) {
-            $('#solver_code').text(code);
+            CURRENT_SOLVER_CODE = code;
+            $('#solver_code').html(buildSolverCodeHtml(code));
             solverDiv.show();
         },
         error: function() {
+            CURRENT_SOLVER_CODE = null;
             solverDiv.hide();
         }
     });
@@ -229,6 +238,7 @@ function loadCategories(initialCategory, initialFilename) {
             : (categories[0] || '');
         $('#category_select').val(CURRENT_CATEGORY);
         loadTaskList(initialFilename);
+        loadFunctionIndex();
     }).error(function() {
         errorMsg('Could not load categories for dataset: ' + CURRENT_DATASET);
     });
@@ -255,12 +265,15 @@ function loadDatasets() {
 
 function onDatasetChange() {
     CURRENT_DATASET = $('#dataset_select').val();
+    resetFunctionFilterState();
     loadCategories();
 }
 
 function onCategoryChange() {
     CURRENT_CATEGORY = $('#category_select').val();
+    resetFunctionFilterState();
     loadTaskList();
+    loadFunctionIndex();
 }
 
 function prevTask() {
@@ -314,7 +327,7 @@ function submitSolution() {
 function fillTestInput(inputGrid) {
     jqInputGrid = $('#evaluation_input');
     fillJqGridWithData(jqInputGrid, inputGrid);
-    fitCellsToContainer(jqInputGrid, inputGrid.height, inputGrid.width, 400, 400);
+    fitCellsToContainer(jqInputGrid, inputGrid.height, inputGrid.width, 270, 270);
 }
 
 function copyToOutput() {
@@ -345,6 +358,194 @@ function initializeSelectable() {
             }
         );
     }
+}
+
+// ── Function index ────────────────────────────────────────────────────────────
+
+function resetFunctionFilterState() {
+    ACTIVE_FUNCTION_FILTER = null;
+    ORIGINAL_TASK_LIST = null;
+    $('#function_filter_bar').hide();
+    $('.fn-body').hide();
+    $('.fn-item').removeClass('fn-active');
+}
+
+function loadFunctionIndex() {
+    var pane = $('#function_index_view');
+    if (CURRENT_DATASET !== 'arc' || CURRENT_CATEGORY !== 'training') {
+        pane.hide();
+        $('body').removeClass('has-function-pane');
+        return;
+    }
+    $('body').addClass('has-function-pane');
+    pane.show();
+    if (FUNCTION_INDEX !== null) {
+        renderFunctionPane();
+        return;
+    }
+    $.getJSON('/api/function-index', function(data) {
+        // Build reverse map: function name -> [taskId, ...]
+        var functionTasks = {};
+        for (var taskId in data.taskFunctions) {
+            data.taskFunctions[taskId].forEach(function(fn) {
+                if (!functionTasks[fn]) functionTasks[fn] = [];
+                functionTasks[fn].push(taskId);
+            });
+        }
+        data.functionTasks = functionTasks;
+        FUNCTION_INDEX = data;
+        renderFunctionPane();
+        // Re-render current solver code now that we have hover data
+        if (CURRENT_SOLVER_CODE) {
+            $('#solver_code').html(buildSolverCodeHtml(CURRENT_SOLVER_CODE));
+        }
+    }).error(function() {
+        pane.hide();
+        $('body').removeClass('has-function-pane');
+    });
+}
+
+function renderFunctionPane() {
+    if (!FUNCTION_INDEX) return;
+    var functionTasks = FUNCTION_INDEX.functionTasks;
+
+    // Sort functions by task count descending
+    var sorted = Object.keys(functionTasks).sort(function(a, b) {
+        return functionTasks[b].length - functionTasks[a].length;
+    });
+
+    var html = '';
+    for (var i = 0; i < sorted.length; i++) {
+        var name = sorted[i];
+        var count = functionTasks[name].length;
+        var body = FUNCTION_INDEX.dslFunctions[name] || '';
+        var escapedBody = body
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        var isActive = (ACTIVE_FUNCTION_FILTER === name) ? ' fn-active' : '';
+        html += '<div class="fn-item' + isActive + '" data-fn="' + name + '">';
+        html += '<div class="fn-header">';
+        html += '<span class="fn-name">' + name + '</span>';
+        html += '<span class="fn-count">' + count + ' task' + (count === 1 ? '' : 's') + '</span>';
+        html += '</div>';
+        html += '<pre class="fn-body">' + escapedBody + '</pre>';
+        html += '</div>';
+    }
+    $('#function_list').html(html);
+
+    // Restore expanded state if a filter is active
+    if (ACTIVE_FUNCTION_FILTER) {
+        var activeItem = $('.fn-item[data-fn="' + ACTIVE_FUNCTION_FILTER + '"]');
+        activeItem.find('.fn-body').show();
+        $('#function_filter_bar').css('display', 'flex');
+        $('#active_fn_name').text(ACTIVE_FUNCTION_FILTER);
+    }
+}
+
+function selectFunction(name) {
+    if (!FUNCTION_INDEX) return;
+
+    var isCurrentlyActive = (ACTIVE_FUNCTION_FILTER === name);
+
+    // Collapse all items
+    $('.fn-body').hide();
+    $('.fn-item').removeClass('fn-active');
+
+    if (isCurrentlyActive) {
+        clearFunctionFilter();
+        return;
+    }
+
+    // Expand selected item
+    var item = $('.fn-item[data-fn="' + name + '"]');
+    item.addClass('fn-active');
+    item.find('.fn-body').show();
+
+    // Scroll into view within #function_list
+    var list = document.getElementById('function_list');
+    var itemEl = item[0];
+    if (list && itemEl) {
+        var itemTop = itemEl.offsetTop - list.offsetTop;
+        var itemBottom = itemTop + itemEl.offsetHeight;
+        var scrollTop = list.scrollTop;
+        var listH = list.clientHeight;
+        if (itemTop < scrollTop) {
+            list.scrollTop = itemTop - 8;
+        } else if (itemBottom > scrollTop + listH) {
+            list.scrollTop = itemBottom - listH + 8;
+        }
+    }
+
+    // Filter task list
+    ACTIVE_FUNCTION_FILTER = name;
+    var taskIds = FUNCTION_INDEX.functionTasks[name] || [];
+    var taskIdSet = {};
+    taskIds.forEach(function(id) { taskIdSet[id] = true; });
+
+    if (!ORIGINAL_TASK_LIST) {
+        ORIGINAL_TASK_LIST = TASK_LIST.slice();
+    }
+    TASK_LIST = ORIGINAL_TASK_LIST.filter(function(filename) {
+        return taskIdSet[filename.replace('.json', '')];
+    });
+
+    $('#function_filter_bar').css('display', 'flex');
+    $('#active_fn_name').text(name + ' (' + TASK_LIST.length + ' task' + (TASK_LIST.length === 1 ? '' : 's') + ')');
+
+    CURRENT_TASK_INDEX = 0;
+    if (TASK_LIST.length > 0) {
+        loadTaskByIndex(0);
+    } else {
+        errorMsg('No tasks found for function: ' + name);
+    }
+}
+
+function clearFunctionFilter() {
+    if (ORIGINAL_TASK_LIST) {
+        TASK_LIST = ORIGINAL_TASK_LIST;
+        ORIGINAL_TASK_LIST = null;
+    }
+    ACTIVE_FUNCTION_FILTER = null;
+    $('#function_filter_bar').hide();
+    $('.fn-body').hide();
+    $('.fn-item').removeClass('fn-active');
+    CURRENT_TASK_INDEX = 0;
+    if (TASK_LIST.length > 0) {
+        loadTaskByIndex(0);
+    }
+}
+
+function buildSolverCodeHtml(code) {
+    // HTML-escape first
+    var escaped = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    if (!FUNCTION_INDEX || !FUNCTION_INDEX.dslFunctions) return escaped;
+
+    // Wrap DSL function calls with interactive spans (longest names first)
+    var fnNames = Object.keys(FUNCTION_INDEX.dslFunctions).sort(function(a, b) {
+        return b.length - a.length;
+    });
+    fnNames.forEach(function(name) {
+        var re = new RegExp('\\b' + name + '(?=\\s*\\()', 'g');
+        escaped = escaped.replace(re,
+            '<span class="dsl-fn-ref" data-fn="' + name + '">' + name + '</span>');
+    });
+    return escaped;
+}
+
+function positionTooltip(e) {
+    var $t = $('#dsl-tooltip');
+    var x = e.clientX + 14;
+    var y = e.clientY + 14;
+    var w = $t.outerWidth(true) || 420;
+    var h = $t.outerHeight(true) || 150;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - 8;
+    if (y + h > window.innerHeight - 8) y = e.clientY - h - 8;
+    $t.css({ left: x + 'px', top: y + 'px' });
 }
 
 // Initial event binding.
@@ -427,6 +628,28 @@ $(document).ready(function () {
 
     // Fetch datasets from server, cascade into categories and first task.
     loadDatasets();
+
+    // DSL function index: click to select, hover for tooltip
+    $(document).on('click', '.fn-header', function() {
+        var name = $(this).closest('.fn-item').data('fn');
+        selectFunction(name);
+    });
+
+    $(document).on('mouseenter', '.dsl-fn-ref', function(e) {
+        var fnName = $(this).data('fn');
+        if (!FUNCTION_INDEX || !FUNCTION_INDEX.dslFunctions[fnName]) return;
+        $('#dsl-tooltip-body').text(FUNCTION_INDEX.dslFunctions[fnName]);
+        $('#dsl-tooltip').show();
+        positionTooltip(e);
+    });
+
+    $(document).on('mouseleave', '.dsl-fn-ref', function() {
+        $('#dsl-tooltip').hide();
+    });
+
+    $(document).on('mousemove', '.dsl-fn-ref', function(e) {
+        positionTooltip(e);
+    });
 
     $('body').keydown(function(event) {
         // Don't hijack keys when typing in an input field.

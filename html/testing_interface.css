@@ -1,12 +1,20 @@
 body {
     font-family: 'Open Sans', sans-serif;
-    min-width: 1410px;
+    min-width: 1070px;
+}
+
+body.has-function-pane {
+    min-width: 1435px;
 }
 
 #workspace {
-    width: 1410px;
+    width: 1070px;
     margin-left: auto;
     margin-right: auto;
+}
+
+body.has-function-pane #workspace {
+    width: 1435px;
 }
 
 #demonstration_examples_view {
@@ -19,7 +27,7 @@ body {
 
 #evaluation_view {
     float: left;
-    width: 930px;
+    width: 590px;
     margin: 10px;
     margin-left: 5px;
     background-color: #d5d5d5;
@@ -28,13 +36,13 @@ body {
 
 #evaluation-input-view {
     float: left;
-    width: 400px;
+    width: 270px;
     margin: 10px;
 }
 
 #evaluation_output_editor {
     float: left;
-    width: 500px;
+    width: 300px;
     margin-bottom: 20px;
 }
 
@@ -186,4 +194,130 @@ input, button {
 
 #modal input {
     margin-left: 70px;
+}
+
+/* ── Function index pane ─────────────────────────────────────── */
+
+#function_index_view {
+    float: left;
+    width: 350px;
+    margin: 10px;
+    margin-left: 5px;
+    background-color: #d5d5d5;
+    min-height: 850px;
+    display: none;
+}
+
+#function_index_header {
+    margin: 10px;
+}
+
+#function_filter_bar {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 3px;
+    padding: 4px 8px;
+    margin: 5px;
+    font-size: 12px;
+}
+
+#function_list {
+    margin: 5px;
+    overflow-y: auto;
+    max-height: 810px;
+}
+
+.fn-item {
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.fn-item.fn-active > .fn-header {
+    background: #c8e6c9;
+}
+
+.fn-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    user-select: none;
+}
+
+.fn-header:hover {
+    background: #e8f5e9;
+}
+
+.fn-item.fn-active > .fn-header:hover {
+    background: #b9deba;
+}
+
+.fn-name {
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.fn-count {
+    font-size: 11px;
+    color: #555;
+    background: #eee;
+    padding: 1px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.fn-body {
+    background: #f8f8f8;
+    border-top: 1px solid #e0e0e0;
+    padding: 6px 10px;
+    margin: 0;
+    font-family: monospace;
+    font-size: 11px;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 260px;
+    white-space: pre;
+    display: none;
+}
+
+/* ── DSL function refs in solver code ───────────────────────── */
+
+.dsl-fn-ref {
+    color: #1565c0;
+    cursor: help;
+    text-decoration: underline dotted;
+}
+
+.dsl-fn-ref:hover {
+    background: #e3f2fd;
+    border-radius: 2px;
+}
+
+/* ── Hover tooltip ───────────────────────────────────────────── */
+
+#dsl-tooltip {
+    position: fixed;
+    background: #fffde7;
+    border: 1px solid #f9a825;
+    border-radius: 4px;
+    padding: 8px 10px;
+    z-index: 9999;
+    max-width: 440px;
+    max-height: 280px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
+#dsl-tooltip-body {
+    margin: 0;
+    font-family: monospace;
+    font-size: 11px;
+    white-space: pre;
 }
