@@ -348,6 +348,13 @@ $(document).ready(function () {
     loadDatasets();
 
     $('body').keydown(function(event) {
+        // Don't hijack keys when typing in an input field.
+        if ($(event.target).is('input, select, textarea')) return;
+
+        // Prev/next task navigation.
+        if (event.which == 37) { prevTask(); return; }  // left arrow
+        if (event.which == 39) { nextTask(); return; }  // right arrow
+
         // Copy and paste functionality.
         if (event.which == 67) {
             // Press C
