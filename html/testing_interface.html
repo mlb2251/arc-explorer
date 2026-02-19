@@ -37,8 +37,9 @@
 
                     <div id="load_task_control_btns">
                         <button onclick="prevTask()" id="prev_task_btn">&larr; Prev</button>
+                        <input type="text" id="task_index_input" style="width:4em; text-align:center;" title="Task number">
                         <button onclick="nextTask()" id="next_task_btn">Next &rarr;</button>
-                        <label id="task_name"></label>
+                        <input type="text" id="task_name" style="width:16em;" title="Task filename">
                         <p>
                         <label for="dataset_select">Dataset: </label>
                         <select id="dataset_select" onchange="onDatasetChange()"></select>

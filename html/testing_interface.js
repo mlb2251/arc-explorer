@@ -142,11 +142,12 @@ function loadJSONTask(train, test) {
 }
 
 function display_task_name(task_name, task_index, number_of_tasks) {
-    big_space = '&nbsp;'.repeat(4);
-    document.getElementById('task_name').innerHTML = (
-        'Task:' + big_space + task_name + big_space +
-        String(task_index) + ' / ' + String(number_of_tasks)
-    );
+    var path = CURRENT_DATASET + '/' + CURRENT_CATEGORY + '/' + task_name;
+    $('#task_name').val(path);
+    $('#task_index_input').val(task_index);
+    var params = new URLSearchParams(window.location.search);
+    params.set('task', path);
+    history.replaceState(null, '', '?' + params.toString().replace(/%2F/g, '/'));
 }
 
 // --- Generic hierarchy navigation ---
@@ -172,46 +173,60 @@ function loadTaskByIndex(index) {
     });
 }
 
-function loadTaskList(onSuccess) {
+// initialFilename: if provided, jump to that file instead of index 0.
+function loadTaskList(initialFilename) {
     var apiUrl = '/api/tasks?dataset=' + encodeURIComponent(CURRENT_DATASET) +
                  '&category=' + encodeURIComponent(CURRENT_CATEGORY);
     $.getJSON(apiUrl, function(files) {
         TASK_LIST = files;
-        CURRENT_TASK_INDEX = 0;
-        if (TASK_LIST.length > 0) {
-            loadTaskByIndex(0);
-        } else {
+        if (TASK_LIST.length === 0) {
             errorMsg('No tasks found in ' + CURRENT_DATASET + '/' + CURRENT_CATEGORY);
+            return;
         }
-        if (onSuccess) onSuccess();
+        if (initialFilename) {
+            var idx = TASK_LIST.indexOf(initialFilename);
+            CURRENT_TASK_INDEX = idx !== -1 ? idx : 0;
+        } else {
+            CURRENT_TASK_INDEX = 0;
+        }
+        loadTaskByIndex(CURRENT_TASK_INDEX);
     }).error(function() {
         errorMsg('Could not load task list from server.');
     });
 }
 
-function loadCategories(onSuccess) {
+// initialCategory/initialFilename: if provided, select that category and file instead of defaults.
+function loadCategories(initialCategory, initialFilename) {
     $.getJSON('/api/categories?dataset=' + encodeURIComponent(CURRENT_DATASET), function(categories) {
         var sel = $('#category_select');
         sel.empty();
         categories.forEach(function(cat) {
             sel.append($('<option>').val(cat).text(cat));
         });
-        CURRENT_CATEGORY = categories[0] || '';
-        loadTaskList(onSuccess);
+        CURRENT_CATEGORY = (initialCategory && categories.indexOf(initialCategory) !== -1)
+            ? initialCategory
+            : (categories[0] || '');
+        $('#category_select').val(CURRENT_CATEGORY);
+        loadTaskList(initialFilename);
     }).error(function() {
         errorMsg('Could not load categories for dataset: ' + CURRENT_DATASET);
     });
 }
 
 function loadDatasets() {
+    var initTask = new URLSearchParams(window.location.search).get('task');
+    var initParts = initTask ? initTask.split('/') : null;
+
     $.getJSON('/api/datasets', function(datasets) {
         var sel = $('#dataset_select');
         sel.empty();
         datasets.forEach(function(ds) {
             sel.append($('<option>').val(ds).text(ds));
         });
-        CURRENT_DATASET = datasets[0] || '';
-        loadCategories();
+        var initDataset = (initParts && datasets.indexOf(initParts[0]) !== -1) ? initParts[0] : datasets[0];
+        CURRENT_DATASET = initDataset || '';
+        $('#dataset_select').val(CURRENT_DATASET);
+        loadCategories(initParts ? initParts[1] : null, initParts ? initParts[2] : null);
     }).error(function() {
         errorMsg('Could not load datasets from server. Is the server running?');
     });
@@ -341,6 +356,51 @@ $(document).ready(function () {
     $('input[type=text][name=size]').on('keydown', function(event) {
         if (event.keyCode == 13) {
             resizeOutputGrid();
+        }
+    });
+
+    $('#task_name').on('keydown', function(event) {
+        if (event.keyCode != 13) return;
+        var parts = $(this).val().trim().split('/');
+        if (parts.length !== 3) {
+            errorMsg('Path must be dataset/category/filename.json');
+            display_task_name(TASK_LIST[CURRENT_TASK_INDEX], CURRENT_TASK_INDEX + 1, TASK_LIST.length);
+            return;
+        }
+        var dataset = parts[0], category = parts[1], filename = parts[2];
+        if (dataset === CURRENT_DATASET && category === CURRENT_CATEGORY) {
+            // Same list — just jump to the file.
+            var idx = TASK_LIST.indexOf(filename);
+            if (idx !== -1) {
+                CURRENT_TASK_INDEX = idx;
+                loadTaskByIndex(CURRENT_TASK_INDEX);
+            } else {
+                errorMsg('Task not found: ' + filename);
+                display_task_name(TASK_LIST[CURRENT_TASK_INDEX], CURRENT_TASK_INDEX + 1, TASK_LIST.length);
+            }
+        } else if (dataset === CURRENT_DATASET) {
+            // Same dataset, different category — reload task list only.
+            CURRENT_CATEGORY = category;
+            $('#category_select').val(category);
+            loadTaskList(filename);
+        } else {
+            // Different dataset — reload categories and task list.
+            CURRENT_DATASET = dataset;
+            $('#dataset_select').val(dataset);
+            loadCategories(category, filename);
+        }
+    });
+
+    $('#task_index_input').on('keydown', function(event) {
+        if (event.keyCode == 13) {
+            var n = parseInt($(this).val());
+            if (!isNaN(n) && n >= 1 && n <= TASK_LIST.length) {
+                CURRENT_TASK_INDEX = n - 1;
+                loadTaskByIndex(CURRENT_TASK_INDEX);
+            } else {
+                errorMsg('Task number must be between 1 and ' + TASK_LIST.length);
+                $('#task_index_input').val(CURRENT_TASK_INDEX + 1);
+            }
         }
     });
 
