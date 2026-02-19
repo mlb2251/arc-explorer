@@ -5,7 +5,7 @@ server: setup
 	node html/server.js 8070
 
 # Phony setup gate — depends on all non-phony data targets.
-setup: clones/arc clones/concept-arc data/arc data/concept-arc
+setup: clones/arc clones/concept-arc data/arc data/concept-arc clones/arc-dsl
 
 
 # --- Clone targets (non-phony: skipped if directory already exists) ---
@@ -16,6 +16,8 @@ clones/arc:
 clones/concept-arc:
 	git clone https://github.com/victorvikram/ConceptARC.git clones/concept-arc
 
+clones/arc-dsl:
+	git clone https://github.com/michaelhodel/arc-dsl.git clones/arc-dsl
 
 # --- Data copy targets (non-phony: skipped if directory already exists) ---
 
