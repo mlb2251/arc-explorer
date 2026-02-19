@@ -14,6 +14,18 @@ const path = require('path');
 const PORT = parseInt(process.argv[2] || '8070');
 const HTML_DIR = __dirname;                            // html/
 const DATA_DIR = path.join(__dirname, '..', 'data');   // data/
+const SOLVERS_PATH = path.join(__dirname, '..', 'clones', 'arc-dsl', 'solvers.py');
+
+let solversCache = null;
+
+function getSolversContent(cb) {
+    if (solversCache) return cb(null, solversCache);
+    fs.readFile(SOLVERS_PATH, 'utf8', (err, data) => {
+        if (err) return cb(err);
+        solversCache = data;
+        cb(null, data);
+    });
+}
 
 const MIME = {
     '.html': 'text/html',
@@ -68,6 +80,25 @@ const server = http.createServer((req, res) => {
         listDirs(path.join(DATA_DIR, dataset), (err, dirs) => {
             if (err) return errorResponse(res, 404, `dataset not found: ${dataset}`);
             jsonResponse(res, dirs);
+        });
+        return;
+    }
+
+    if (url.pathname === '/api/solver') {
+        const task = url.searchParams.get('task');
+        if (!task) return errorResponse(res, 400, 'task parameter required');
+        getSolversContent((err, content) => {
+            if (err) return errorResponse(res, 404, 'solvers.py not found');
+            const funcName = 'solve_' + task;
+            const startIdx = content.indexOf('\ndef ' + funcName + '(');
+            if (startIdx === -1) return errorResponse(res, 404, 'solver not found: ' + funcName);
+            const funcStart = startIdx + 1; // skip leading newline
+            const nextDef = content.indexOf('\ndef ', funcStart + 1);
+            const funcCode = nextDef === -1
+                ? content.slice(funcStart).trimEnd()
+                : content.slice(funcStart, nextDef).trimEnd();
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end(funcCode);
         });
         return;
     }

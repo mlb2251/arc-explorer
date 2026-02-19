@@ -156,6 +156,26 @@ function getTaskPath(filename) {
     return '/data/' + CURRENT_DATASET + '/' + CURRENT_CATEGORY + '/' + filename;
 }
 
+function loadSolverCode(filename) {
+    var solverDiv = $('#solver_display');
+    if (CURRENT_DATASET !== 'arc' || CURRENT_CATEGORY !== 'training') {
+        solverDiv.hide();
+        return;
+    }
+    var taskId = filename.replace('.json', '');
+    $.ajax({
+        url: '/api/solver?task=' + encodeURIComponent(taskId),
+        dataType: 'text',
+        success: function(code) {
+            $('#solver_code').text(code);
+            solverDiv.show();
+        },
+        error: function() {
+            solverDiv.hide();
+        }
+    });
+}
+
 function loadTaskByIndex(index) {
     var filename = TASK_LIST[index];
     $.getJSON(getTaskPath(filename), function(json) {
@@ -168,6 +188,7 @@ function loadTaskByIndex(index) {
         }
         loadJSONTask(train, test);
         display_task_name(filename, index + 1, TASK_LIST.length);
+        loadSolverCode(filename);
     }).error(function() {
         errorMsg('Error loading task: ' + filename);
     });

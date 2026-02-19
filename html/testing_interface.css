@@ -145,6 +145,26 @@ input, button {
     margin: 10px;
 }
 
+#solver_display {
+    margin-top: 10px;
+}
+
+#solver_header {
+    margin: 0 0 5px 0;
+}
+
+#solver_code {
+    background: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 8px;
+    margin: 0;
+    font-family: monospace;
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: pre;
+}
+
 #modal_bg {
     background-color: black;
     width: 100%;
