@@ -99,6 +99,44 @@ function copyFromInput() {
     $('#output_grid_size').val(CURRENT_OUTPUT_GRID.height + 'x' + CURRENT_OUTPUT_GRID.width);
 }
 
+function resizeDemoPairs() {
+    var pairs = $('#task_preview .pair_preview');
+    var numPairs = pairs.length;
+    if (numPairs === 0) return;
+
+    var windowH = window.innerHeight;
+    var outerMargins = 20; // top + bottom margins of #demonstration_examples_view
+    var headerH = $('#task_demo_header').outerHeight(true) || 35;
+    var pairBorderPadding = 11; // 10px padding (5 top + 5 bottom) + 1px border per pair
+
+    var totalAvailable = windowH - outerMargins - headerH;
+    var perPairTotal = Math.floor(totalAvailable / numPairs);
+    var gridSizeByHeight = perPairTotal - pairBorderPadding;
+
+    var demoW = $('#demonstration_examples_view').width();
+    var gridSizeByWidth = Math.floor((demoW - 10 /* pair padding */ - 10 /* gap */) / 2);
+
+    var gridSize = Math.max(Math.min(gridSizeByHeight, gridSizeByWidth), 20);
+
+    pairs.each(function() {
+        var $pair = $(this);
+        var $input = $pair.find('.input_preview');
+        var $output = $pair.find('.output_preview');
+
+        var inputRows = $input.find('.row').length;
+        var inputCols = $input.find('.row:first .cell').length;
+        var outputRows = $output.find('.row').length;
+        var outputCols = $output.find('.row:first .cell').length;
+
+        if (inputRows > 0 && inputCols > 0) {
+            fitCellsToContainer($input, inputRows, inputCols, gridSize, gridSize);
+        }
+        if (outputRows > 0 && outputCols > 0) {
+            fitCellsToContainer($output, outputRows, outputCols, gridSize, gridSize);
+        }
+    });
+}
+
 function fillPairPreview(pairId, inputGrid, outputGrid) {
     var pairSlot = $('#pair_preview_' + pairId);
     if (!pairSlot.length) {
@@ -145,6 +183,7 @@ function loadJSONTask(train, test) {
     CURRENT_TEST_PAIR_INDEX = 0;
     $('#current_test_input_id_display').html('1');
     $('#total_test_input_count_display').html(test.length);
+    resizeDemoPairs();
 }
 
 function display_task_name(task_name, task_index, number_of_tasks) {
@@ -628,6 +667,8 @@ $(document).ready(function () {
 
     // Fetch datasets from server, cascade into categories and first task.
     loadDatasets();
+
+    $(window).on('resize', resizeDemoPairs);
 
     // DSL function index: click to select, hover for tooltip
     $(document).on('click', '.fn-header', function() {

@@ -125,20 +125,18 @@ input, button {
 /*Task demonstration*/
 
 .pair_preview {
-    height: 200px;
     padding: 5px;
     border-bottom: solid 1px #a1a1a1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
 }
 .input_preview {
-    height: 200px;
-    width: 200px;
-    float: left;
+    flex-shrink: 0;
 }
 .output_preview {
-    height: 200px;
-    width: 200px;
-    float: left;
-    margin-left: 35px;
+    flex-shrink: 0;
 }
 
 .text {
