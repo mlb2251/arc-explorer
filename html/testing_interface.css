@@ -258,6 +258,18 @@ input, button {
 .fn-name {
     font-family: monospace;
     font-weight: bold;
+    flex-shrink: 0;
+}
+
+.fn-docstring {
+    font-size: 11px;
+    color: #aaa;
+    font-style: italic;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0 8px;
 }
 
 .fn-count {
@@ -306,7 +318,6 @@ input, button {
     padding: 8px 10px;
     z-index: 9999;
     max-width: 440px;
-    max-height: 280px;
     overflow-y: auto;
     display: none;
     box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.2);

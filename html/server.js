@@ -57,6 +57,15 @@ function buildFunctionIndex(dslContent, solversContent) {
     }
     if (curName) dslFunctions[curName] = curBody.join('\n').trimEnd();
 
+    // Extract one-line docstrings
+    const dslDocstrings = {};
+    for (const [name, body] of Object.entries(dslFunctions)) {
+        for (const line of body.split('\n').slice(1)) {
+            const m = line.match(/^\s*"""\s*(.*?)\s*"""/);
+            if (m) { dslDocstrings[name] = m[1]; break; }
+        }
+    }
+
     // For each solver function, find which DSL functions it calls
     const knownFns = new Set(Object.keys(dslFunctions));
     const taskFunctions = {};
@@ -79,7 +88,7 @@ function buildFunctionIndex(dslContent, solversContent) {
     }
     if (curTask) taskFunctions[curTask] = [...curFns];
 
-    return { dslFunctions, taskFunctions };
+    return { dslFunctions, dslDocstrings, taskFunctions };
 }
 
 const MIME = {

@@ -463,9 +463,11 @@ function renderFunctionPane() {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
         var isActive = (ACTIVE_FUNCTION_FILTER === name) ? ' fn-active' : '';
+        var docstring = (FUNCTION_INDEX.dslDocstrings && FUNCTION_INDEX.dslDocstrings[name]) || '';
         html += '<div class="fn-item' + isActive + '" data-fn="' + name + '">';
         html += '<div class="fn-header">';
         html += '<span class="fn-name">' + name + '</span>';
+        if (docstring) html += '<span class="fn-docstring">' + docstring + '</span>';
         html += '<span class="fn-count">' + count + ' task' + (count === 1 ? '' : 's') + '</span>';
         html += '</div>';
         html += '<pre class="fn-body">' + escapedBody + '</pre>';
@@ -578,12 +580,28 @@ function buildSolverCodeHtml(code) {
 
 function positionTooltip(e) {
     var $t = $('#dsl-tooltip');
-    var x = e.clientX + 14;
-    var y = e.clientY + 14;
+    $t.css('max-height', 'none'); // reset so natural height is measurable
     var w = $t.outerWidth(true) || 420;
     var h = $t.outerHeight(true) || 150;
+
+    var x = e.clientX + 14;
     if (x + w > window.innerWidth - 8) x = e.clientX - w - 8;
-    if (y + h > window.innerHeight - 8) y = e.clientY - h - 8;
+
+    var spaceBelow = window.innerHeight - e.clientY - 22;
+    var spaceAbove = e.clientY - 22;
+    var y;
+    if (h <= spaceBelow) {
+        y = e.clientY + 14;
+    } else if (h <= spaceAbove) {
+        y = e.clientY - 14 - h;
+    } else if (spaceBelow >= spaceAbove) {
+        y = e.clientY + 14;
+        $t.css('max-height', spaceBelow + 'px');
+    } else {
+        $t.css('max-height', spaceAbove + 'px');
+        y = e.clientY - 14 - spaceAbove;
+    }
+
     $t.css({ left: x + 'px', top: y + 'px' });
 }
 
