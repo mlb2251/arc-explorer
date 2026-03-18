@@ -571,7 +571,7 @@ function buildSolverCodeHtml(code) {
         return b.length - a.length;
     });
     fnNames.forEach(function(name) {
-        var re = new RegExp('\\b' + name + '(?=\\s*\\()', 'g');
+        var re = new RegExp('\\b' + name + '\\b', 'g');
         escaped = escaped.replace(re,
             '<span class="dsl-fn-ref" data-fn="' + name + '">' + name + '</span>');
     });

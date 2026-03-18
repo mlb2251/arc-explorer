@@ -79,7 +79,7 @@ function buildFunctionIndex(dslContent, solversContent) {
             curTask = m[1];
             curFns = new Set();
         } else if (curTask) {
-            const re = /\b([a-zA-Z_]\w*)\s*\(/g;
+            const re = /\b([a-zA-Z_]\w*)\b/g;
             let match;
             while ((match = re.exec(line)) !== null) {
                 if (knownFns.has(match[1])) curFns.add(match[1]);
